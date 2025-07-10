@@ -1,56 +1,139 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html>
 <head>
-  <!-- 
-      This is an HTML comment
-      You can write text in a comment and the content won't be visible in the page
-    -->
+  <title>CoinZap Mini - Mining App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" href="https://glitch.com/favicon.ico" />
+  <!-- ✅ HilltopAds Verification Meta Tag -->
+  <meta name="4b10df28ab1bd05303dd421c704ca0e75dd42990" content="4b10df28ab1bd05303dd421c704ca0e75dd42990" />
 
-  <!--
-      This is the page head - it contains info the browser uses
-      Like the title, which appears on the browser tab but not inside the page
-      Further down you'll see the content that displays in the page
-    -->
-  <title>Hello World!</title>
-
-  <!-- The website stylesheet -->
-  <link rel="stylesheet" href="/style.css" />
-
-  <!-- The website JavaScript file -->
-  <script src="/script.js" defer></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; text-align: center; }
+    h1, h2 { color: #28a745; }
+    input, button { margin: 10px 0; padding: 10px; width: 90%; max-width: 300px; border-radius: 5px; }
+    input { border: 1px solid #ccc; }
+    button { background: #28a745; color: white; border: none; cursor: pointer; }
+    .screen { display: none; }
+    .disabled { background: #ccc; cursor: not-allowed; }
+  </style>
 </head>
-
 <body>
-  <!--
-      The body includes the content you see in the page
-      Each element is defined using tags, like this <div></div>
-      The attributes like class="wrapper" let us style elements in the CSS
-    -->
-  <div class="wrapper">
-    <div class="content" role="main">
-      <h1 class="title">Oh hi website!</h1>
-      <img src="/cool-website.svg" class="illustration" alt="cool website" />
-      <div class="instructions">
-        <p>
-          Fork <a href="https://github.com/glitchdotcom/website-to-compute">this project</a> and open it in a GitHub Codespace.
-        </p>
-        <p> Follow the steps in the README to deploy your new website to Fastly in a few steps!
-        </p>
 
-      </div>
-
-      <footer class="footer">
-        <div>
-          <a class="remix" href="https://github.com/glitchdotcom/website-to-compute">🚧 Get your own site</a>
-        </div>
-      </footer>
-    </div>
+  <!-- Login/Register Screen -->
+  <div id="authScreen">
+    <h1>CoinZap Mini</h1>
+    <p><b>Login or Register to Start Mining</b></p>
+    <input type="email" id="email" placeholder="Email" required><br>
+    <input type="password" id="password" placeholder="Password" required><br>
+    <button onclick="register()">Register</button>
+    <button onclick="login()">Login</button>
   </div>
-</body>
 
-</html>
+  <!-- Mining Screen -->
+  <div id="miningScreen" class="screen">
+    <h2>Welcome to CoinZap Mini</h2>
+    <p>🎯 Coins Earned: <span id="coinCount">0</span></p>
+    <p><span id="founderAds">0</span>/10</p>
+    <button id="founderBtn" onclick="watchAd('founder')">Watch to Earn</button>
+    <p><span id="userAds">0</span>/10</p>
+    <button id="userBtn" onclick="watchAd('user')">Watch to Earn</button>
+    <br><br>
+
+    <input type="text" id="walletAddress" placeholder="Enter DollarZone Wallet Address">
+    <button onclick="sendCoins()">Send to Wallet</button>
+    <p><i>You’ll continue in the Wallet App after sending.</i></p>
+  </div>
+
+  <script>
+    const maxPerSource = 10;
+    const cooldownTime = 30 * 60 * 1000; // 30 minutes
+    let coins = 0, founderAds = 0, userAds = 0;
+    let sessionUser = null;
+    const users = JSON.parse(localStorage.getItem('cz_users') || '{}');
+
+    function register() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      if (!email || !password) return alert("Please enter email and password");
+      if (users[email]) return alert("User already exists");
+      users[email] = { password, coins: 0 };
+      localStorage.setItem('cz_users', JSON.stringify(users));
+      alert("Registered! Please login.");
+    }
+
+    function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const user = users[email];
+      if (!user || user.password !== password) return alert("Invalid login");
+      sessionUser = email;
+      document.getElementById("authScreen").style.display = "none";
+      document.getElementById("miningScreen").style.display = "block";
+      checkCooldowns();
+    }
+
+    function watchAd(source) {
+      const now = Date.now();
+      const cooldownKey = `${sessionUser}_${source}_cooldown`;
+      const cooldownEnd = parseInt(localStorage.getItem(cooldownKey) || "0");
+      if (now < cooldownEnd) {
+        const minsLeft = Math.ceil((cooldownEnd - now) / 60000);
+        return alert(`Please wait ${minsLeft} minutes before watching more ads.`);
+      }
+
+      if (source === 'founder') {
+        if (founderAds >= maxPerSource) {
+          localStorage.setItem(cooldownKey, now + cooldownTime);
+          disableButton("founderBtn");
+          return alert("Limit reached. Cooldown started.");
+        }
+        founderAds++;
+        document.getElementById("founderAds").innerText = founderAds;
+        if (founderAds >= maxPerSource) {
+          localStorage.setItem(cooldownKey, now + cooldownTime);
+          disableButton("founderBtn");
+        }
+      } else {
+        if (userAds >= maxPerSource) {
+          localStorage.setItem(cooldownKey, now + cooldownTime);
+          disableButton("userBtn");
+          return alert("Limit reached. Cooldown started.");
+        }
+        userAds++;
+        document.getElementById("userAds").innerText = userAds;
+        if (userAds >= maxPerSource) {
+          localStorage.setItem(cooldownKey, now + cooldownTime);
+          disableButton("userBtn");
+        }
+      }
+      coins++;
+      document.getElementById("coinCount").innerText = coins;
+    }
+
+    function disableButton(id) {
+      const btn = document.getElementById(id);
+      btn.classList.add("disabled");
+      btn.disabled = true;
+    }
+
+    function checkCooldowns() {
+      const now = Date.now();
+      ['founder', 'user'].forEach(source => {
+        const cooldownKey = `${sessionUser}_${source}_cooldown`;
+        const cooldownEnd = parseInt(localStorage.getItem(cooldownKey) || "0");
+        if (now < cooldownEnd) disableButton(source + "Btn");
+      });
+    }
+
+    function sendCoins() {
+      if (!sessionUser) return alert("Login first");
+      const address = document.getElementById("walletAddress").value.trim();
+      if (!address) return alert("Please enter a DollarZone wallet address");
+      alert(`${coins} coins sent to wallet: ${address}`);
+      coins = 0;
+      document.getElementById("coinCount").innerText = coins;
+    }
+  </script>
+
+</body>
+</html
